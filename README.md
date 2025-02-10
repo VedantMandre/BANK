@@ -1,138 +1,155 @@
-# Payment System Schema and Column Analysis
+# Send Payments Flow and Database Schema
 
-This document outlines the necessary fields and their categorization for a payment system, based on the provided Figma landing page details and the underlying table schema (GCMS_FUNDS_TRANSFER_DETAIL). It includes both the frontend display fields and additional backend fields that, while not visible on the navigation page, are critical for processing and tracking payments.
-
----
-
-## 1. Frontend Display Fields
-
-These fields are expected to be shown on the navigation page based on the Figma design.
-
-### 1.1 Payment Identification
-- **FUNDS_TRANSFER_ID** (Primary Key)
-- **TRANSACTION_ID**
-- **TRANSACTION_REFERENCE_NUMBER**
-
-### 1.2 Beneficiary Information
-- **BENEF_CUST_NAME**  
-  *Note: This may need to be parsed into first and last name.*
-- **BENEF_CUST_ID**
-
-### 1.3 Payment Type / Tags
-- **TRANSACTION_CODE**
-- **FUNDS_TYPE** (e.g., ACH, WIRE, etc.)
-- **CATEGORY_PURPOSE**
-
-### 1.4 Amount Details
-- **AMOUNT**
-- **CURRENCY**
-- **USD_AMOUNT** (for standardization)
-
-### 1.5 Status Information
-- **TRANSACTION_STATUS_ID**
-- **CREATION_DATE** (used as the submission date)
+This document provides a comprehensive overview of the "Send Payments" flow based on the Figma screens and the corresponding database schema. It includes details on the payment type selection, required fields in the payment section, beneficiary information, and all related database tables along with key considerations and potential future extensions.
 
 ---
 
-## 2. Critical Backend Fields (Not Displayed on Navigation Page)
+## 1. Payment Type Selection
 
-These fields are necessary for transaction processing, auditing, and backend operations.
-
-### 2.1 Transaction Processing
-- **VALUE_DATE**
-- **EXCHANGE_RATE**
-- **BASE_RATE**
-- **FX_EXCHANGE_RATE**
-- **FX_ONLINE_INDICATOR**
-- **TRACKING_STATUS_ID**
-- **TRACKING_DETAIL_ID**
-
-### 2.2 Extended Beneficiary Details
-- **BENEF_CUST_ADDRESS_LINE1**
-- **BENEF_CUST_ADDRESS_LINE2**
-- **BENEF_CUST_ADDRESS_LINE3**
-- **BENEF_CUST_COUNTRY_CODE**
-- **BENEF_BANK_FUNDS_TYPE**
-- **BENEF_INSTIT_ID**
-- **BENEF_INSTIT_NAME**
-
-### 2.3 Source / Routing Information
-- **SOURCE_SYSTEM**
-- **APPLICATION_ID**
-- **IBAN**
-- **BANK_SWIFT_ID**
-- **UETR** (Unique End-to-end Transaction Reference)
-
-### 2.4 Audit / Security Fields
-- **CREATED_BY**
-- **CREATION_DATE**
-- **LAST_UPDATED_BY**
-- **LAST_UPDATED_DATE**
-- **USER_SESSION_ID**
-- **VERSION**
-
-### 2.5 Payment Details
-- **DETAILS_OF_PAYMENT_LINE1**
-- **DETAILS_OF_PAYMENT_LINE2**
-- **DETAILS_OF_PAYMENT_LINE3**
-- **DETAILS_OF_PAYMENT_LINE4**
-- **DETAILS_OF_CHARGES**
-- **PURPOSE_CODE**
-- **BUSINESS_CATEGORY**
-
-### 2.6 Account Information
-- **DEBIT_ACCOUNT_NUMBER**
-- **DEBIT_ACCOUNT_CURRENCY_CODE**
-- **ACCOUNT_BALANCE**
-- **ORIG_DEBIT_ACCOUNT_NUMBER**
+There are three distinct payment types shown:
+- **Wire**
+- **ACH**
+- **Check**
 
 ---
 
-## 3. Key Relationships and Structure
+## 2. Required Fields in Payment Section
 
-Understanding the relationships between the fields is crucial for proper data integration and processing.
+### 2.1 Basic Payment Info
 
-### 3.1 Transaction Flow
-- **FUNDS_TRANSFER_ID → TRANSACTION_ID**  
-  *This establishes a unique relationship between funds transfer and the transaction identifier.*
-- **TRANSACTION_STATUS_ID**  
-  *Used for tracking the status of the payment.*
-- **TRACKING_STATUS_ID → TRACKING_DETAIL_ID**  
-  *Establishes the tracking mechanism for the payment process.*
-
-### 3.2 Financial Flow
-- **DEBIT_ACCOUNT_NUMBER → AMOUNT → EXCHANGE_RATE**  
-  *Links account number to the payment amount and associated exchange rate.*
-- **CURRENCY → USD_AMOUNT**  
-  *Used for standardization of the payment amount.*
-
-### 3.3 Audit Trail
-- **CREATED_BY → CREATION_DATE**  
-  *Captures who created the record and when.*
-- **LAST_UPDATED_BY → LAST_UPDATED_DATE**  
-  *Tracks who last updated the record and when.*
-- **VERSION**  
-  *Used for concurrency control and audit purposes.*
-
----
-
-## 4. Additional Recommendations
-
-### 4.1 Indexing
-Consider creating indexes on the following fields to improve query performance:
-- **TRANSACTION_STATUS_ID**
-- **CREATION_DATE**
-- **BENEF_CUST_ID**
-- **FUNDS_TYPE**
-
-### 4.2 Caching Strategies
-Implement caching where necessary for:
-- **Status Lookups**
-- **Exchange Rates**
-- **Customer Details**
+- **Copy - Funding Account (dropdown)**
+  - **Maps to:** `DEBIT_ACCOUNT_NUMBER`
+  
+- **Payment Currency (dropdown)**
+  - **Maps to:** `CURRENCY` (currently showing USD)
+  
+- **Payment Amount (input field)**
+  - **Maps to:** `AMOUNT`
+  - **Additional Info:** Displays current balance below the field
+  
+- **Value Date (date picker)**
+  - **Maps to:** `VALUE_DATE`
+  - **Format:** MM/DD/YYYY
+  
+- **Payment Frequency**
+  - **Options:** Single / Recurring
+  - **Maps to:** *New field needed* (not present in the current schema)
+  
+- **Payment Notes (text area)**
+  - **Maps to:** `DETAILS_OF_PAYMENT_LINE1/2/3/4`
 
 ---
 
-## Summary
+## 3. Beneficiary Information
 
-This document provides a structured overview of the necessary columns and their relationships for both the frontend display and backend processing of payment data. It is critical to collaborate with the microservices team (for account categorization and display requirements) and the payments team (for source system confirmation and data extraction details) to ensure that the data migration and integration are successful.
+### 3.1 Beneficiary Type Toggle
+
+- **Options:**
+  - Existing Beneficiary (with search)
+  - New Beneficiary
+
+### 3.2 Required Fields for New Beneficiary
+
+- **Beneficiary Name (search/input)**
+  - **Maps to:** `BENEF_CUST_NAME`
+  
+- **Bank Name**
+  - **Maps to:** `BENEF_INSTIT_NAME`
+  
+- **Bank Account Number**
+  - **Maps to:** `REC_CORR_ACCOUNT_NUMBER1`
+  
+- **BAN (Bank Account Number)**
+  - **Maps to:** `IBAN`
+  
+- **Address Fields:**
+  - **Street:** Maps to `BENEF_CUST_ADDRESS_LINE1`
+  - **City:** Part of `BENEF_CUST_ADDRESS_LINE2`
+  - **State:** Part of `BENEF_CUST_ADDRESS_LINE2`
+  - **ZIP:** Part of `BENEF_CUST_ADDRESS_LINE3`
+
+---
+
+## 4. Core Payment Table
+
+```sql
+CREATE TABLE payments (
+    payment_id BIGINT PRIMARY KEY,
+    payment_type VARCHAR(10),  -- WIRE, ACH, CHECK
+    funding_account_id VARCHAR(50),
+    currency_code VARCHAR(3),
+    amount DECIMAL(20,2),
+    value_date DATE,
+    payment_frequency VARCHAR(20),  -- SINGLE, RECURRING
+    payment_notes TEXT,
+    payment_status VARCHAR(20),  -- DRAFT, PENDING, COMPLETED, FAILED
+    created_at TIMESTAMP,
+    created_by VARCHAR(50),
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(50)
+);
+
+6. Beneficiary Management
+6.1 Beneficiaries Table
+CREATE TABLE beneficiaries (
+    beneficiary_id BIGINT PRIMARY KEY,
+    beneficiary_name VARCHAR(100),
+    beneficiary_type VARCHAR(20),  -- INDIVIDUAL, BUSINESS
+    bank_name VARCHAR(100),
+    bank_account_number VARCHAR(50),
+    iban VARCHAR(34),
+    is_active BOOLEAN,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+6.2 Beneficiary Addresses Table
+CREATE TABLE beneficiary_addresses (
+    address_id BIGINT PRIMARY KEY,
+    beneficiary_id BIGINT,
+    street_address VARCHAR(200),
+    city VARCHAR(100),
+    state VARCHAR(50),
+    zip_code VARCHAR(20),
+    country VARCHAR(50),
+    address_type VARCHAR(20),  -- PRIMARY, BILLING, etc.
+    FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(beneficiary_id)
+);
+7. Payment-Beneficiary Relationship
+CREATE TABLE payment_beneficiaries (
+    payment_id BIGINT,
+    beneficiary_id BIGINT,
+    PRIMARY KEY (payment_id, beneficiary_id),
+    FOREIGN KEY (payment_id) REFERENCES payments(payment_id),
+    FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(beneficiary_id)
+);
+8. Payment Status History
+CREATE TABLE payment_status_history (
+    history_id BIGINT PRIMARY KEY,
+    payment_id BIGINT,
+    status VARCHAR(20),
+    status_timestamp TIMESTAMP,
+    status_reason TEXT,
+    updated_by VARCHAR(50),
+    FOREIGN KEY (payment_id) REFERENCES payments(payment_id)
+);
+9. Account Information
+CREATE TABLE accounts (
+    account_id VARCHAR(50) PRIMARY KEY,
+    account_number VARCHAR(50),
+    account_type VARCHAR(20),
+    currency_code VARCHAR(3),
+    current_balance DECIMAL(20,2),
+    available_balance DECIMAL(20,2),
+    is_active BOOLEAN,
+    last_updated TIMESTAMP
+);
+10. Key Considerations
+10.1 Data Types
+VARCHAR: Use appropriate sizes for string fields.
+DECIMAL: Use for monetary amounts.
+TIMESTAMP: Use for audit and time-based fields.
+10.2 Indexing Strategy
+-- Example indexes
+CREATE INDEX idx_payments_status ON payments(payment_status);
+CREATE INDEX idx_payments_date ON payments(value_date);
+CREATE INDEX idx_beneficiary_name ON beneficiaries(beneficiary_name);
