@@ -88,9 +88,10 @@ CREATE TABLE payments (
     updated_at TIMESTAMP,
     updated_by VARCHAR(50)
 );
-
-6. Beneficiary Management
-6.1 Beneficiaries Table
+```
+# 6. Beneficiary Management
+## 6.1 Beneficiaries Table
+```sql
 CREATE TABLE beneficiaries (
     beneficiary_id BIGINT PRIMARY KEY,
     beneficiary_name VARCHAR(100),
@@ -102,7 +103,9 @@ CREATE TABLE beneficiaries (
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
-6.2 Beneficiary Addresses Table
+```
+## 6.2 Beneficiary Addresses Table
+```sql
 CREATE TABLE beneficiary_addresses (
     address_id BIGINT PRIMARY KEY,
     beneficiary_id BIGINT,
@@ -114,7 +117,9 @@ CREATE TABLE beneficiary_addresses (
     address_type VARCHAR(20),  -- PRIMARY, BILLING, etc.
     FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(beneficiary_id)
 );
-7. Payment-Beneficiary Relationship
+```
+## 7. Payment-Beneficiary Relationship
+```sql
 CREATE TABLE payment_beneficiaries (
     payment_id BIGINT,
     beneficiary_id BIGINT,
@@ -122,7 +127,9 @@ CREATE TABLE payment_beneficiaries (
     FOREIGN KEY (payment_id) REFERENCES payments(payment_id),
     FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries(beneficiary_id)
 );
-8. Payment Status History
+```
+## 8. Payment Status History
+```sql
 CREATE TABLE payment_status_history (
     history_id BIGINT PRIMARY KEY,
     payment_id BIGINT,
@@ -132,7 +139,9 @@ CREATE TABLE payment_status_history (
     updated_by VARCHAR(50),
     FOREIGN KEY (payment_id) REFERENCES payments(payment_id)
 );
-9. Account Information
+```
+## 9. Account Information
+```sql
 CREATE TABLE accounts (
     account_id VARCHAR(50) PRIMARY KEY,
     account_number VARCHAR(50),
@@ -143,12 +152,15 @@ CREATE TABLE accounts (
     is_active BOOLEAN,
     last_updated TIMESTAMP
 );
-10. Key Considerations
-10.1 Data Types
+```
+# 10. Key Considerations
+##10.1 Data Types
+```sql
 VARCHAR: Use appropriate sizes for string fields.
 DECIMAL: Use for monetary amounts.
 TIMESTAMP: Use for audit and time-based fields.
-10.2 Indexing Strategy
+```
+## 10.2 Indexing Strategy
 -- Example indexes
 CREATE INDEX idx_payments_status ON payments(payment_status);
 CREATE INDEX idx_payments_date ON payments(value_date);
