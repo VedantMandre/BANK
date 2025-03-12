@@ -66,60 +66,60 @@ INSERT INTO bank.branches (branch_id, branch_code, description) VALUES
 ```
 
 ```
-
 <databaseChangeLog
     xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    <changeSet id="1" author="user">
-        <createTable tableName="beneficiary">
-            <column name="beneficiary_id" type="VARCHAR" constraints="nullable:false"/>
-            <column name="sun_id" type="VARCHAR" constraints="nullable:false, unique:true"/>
-            <column name="payment_id" type="VARCHAR"/>
-            <column name="branch_id" type="VARCHAR"/>
-            <column name="beneficiary_name" type="VARCHAR" constraints="nullable:false"/>
-            <column name="beneficiary_account_number" type="VARCHAR" constraints="nullable:false"/>
-            <column name="beneficiary_organization" type="VARCHAR"/>
-            <column name="beneficiary_department" type="VARCHAR"/>
-            <column name="beneficiary_street_name" type="VARCHAR"/>
-            <column name="beneficiary_building_number" type="VARCHAR"/>
-            <column name="beneficiary_building_name" type="VARCHAR"/>
-            <column name="beneficiary_floor" type="VARCHAR"/>
-            <column name="beneficiary_po_box" type="VARCHAR"/>
-            <column name="beneficiary_room" type="VARCHAR"/>
-            <column name="beneficiary_postal_code" type="VARCHAR"/>
-            <column name="beneficiary_city" type="VARCHAR" constraints="nullable:false"/>
-            <column name="beneficiary_town_location" type="VARCHAR"/>
-            <column name="beneficiary_district" type="VARCHAR"/>
-            <column name="beneficiary_state_province" type="VARCHAR"/>
-            <column name="beneficiary_country" type="VARCHAR" constraints="nullable:false"/>
-            <column name="bank_identifier" type="VARCHAR" constraints="nullable:false"/>
-            <column name="bank_name" type="VARCHAR" constraints="nullable:false"/>
-            <column name="bank_department" type="VARCHAR"/>
-            <column name="bank_sub_department" type="VARCHAR"/>
-            <column name="bank_street_name" type="VARCHAR"/>
-            <column name="bank_building_number" type="VARCHAR"/>
-            <column name="bank_building_name" type="VARCHAR"/>
-            <column name="bank_floor" type="VARCHAR"/>
-            <column name="bank_po_box" type="VARCHAR"/>
-            <column name="bank_room" type="VARCHAR"/>
-            <column name="bank_postal_code" type="VARCHAR"/>
-            <column name="bank_city" type="VARCHAR" constraints="nullable:false"/>
-            <column name="bank_town_location" type="VARCHAR"/>
-            <column name="bank_district_name" type="VARCHAR"/>
-            <column name="bank_state_province" type="VARCHAR"/>
-            <column name="bank_country" type="VARCHAR" constraints="nullable:false"/>
-            <column name="TSID" type="BIGINT" constraints="nullable:false"/>
-            <column name="created_by" type="VARCHAR"/>
-            <column name="created_at" type="TIMESTAMP"/>
-            <column name="updated_by" type="VARCHAR"/>
-            <column name="updated_at" type="TIMESTAMP"/>
-            <column name="record_status" type="VARCHAR" constraints="nullable:false">
-                <constraints checkConstraint="record_status IN ('Draft', 'Complete')" defaultValue="Draft"/>
-            </column>
-        </createTable>
+    <changeSet id="CMT-671-01.01.02" author="tsnow">
+        <comment>Create beneficiary table</comment>
+        <sql>
+        CREATE TABLE IF NOT EXISTS reference.beneficiary (
+            beneficiary_id VARCHAR NOT NULL,
+            sun_id VARCHAR UNIQUE NOT NULL,
+            payment_id VARCHAR,
+            branch_id VARCHAR,
+            beneficiary_name VARCHAR NOT NULL,
+            beneficiary_account_number VARCHAR NOT NULL,
+            beneficiary_organization VARCHAR,
+            beneficiary_department VARCHAR,
+            beneficiary_street_name VARCHAR,
+            beneficiary_building_number VARCHAR,
+            beneficiary_building_name VARCHAR,
+            beneficiary_floor VARCHAR,
+            beneficiary_po_box VARCHAR,
+            beneficiary_room VARCHAR,
+            beneficiary_postal_code VARCHAR,
+            beneficiary_city VARCHAR NOT NULL,
+            beneficiary_town_location VARCHAR,
+            beneficiary_district VARCHAR,
+            beneficiary_state_province VARCHAR,
+            beneficiary_country VARCHAR NOT NULL,
+            bank_identifier VARCHAR NOT NULL,
+            bank_name VARCHAR NOT NULL,
+            bank_department VARCHAR,
+            bank_sub_department VARCHAR,
+            bank_street_name VARCHAR,
+            bank_building_number VARCHAR,
+            bank_building_name VARCHAR,
+            bank_floor VARCHAR,
+            bank_po_box VARCHAR,
+            bank_room VARCHAR,
+            bank_postal_code VARCHAR,
+            bank_city VARCHAR NOT NULL,
+            bank_town_location VARCHAR,
+            bank_district_name VARCHAR,
+            bank_state_province VARCHAR,
+            bank_country VARCHAR NOT NULL,
+            TSID BIGINT NOT NULL,
+            created_by VARCHAR,
+            created_at TIMESTAMP DEFAULT current_timestamp,
+            updated_by VARCHAR,
+            updated_at TIMESTAMP,
+            record_status VARCHAR NOT NULL CHECK (record_status IN ('Draft', 'Complete')) DEFAULT 'Draft'
+        );
+        </sql>
     </changeSet>
 </databaseChangeLog>
 ```
