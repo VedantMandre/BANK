@@ -239,3 +239,77 @@ CREATE TABLE IF NOT EXISTS beneficiaries (
     record_status VARCHAR NOT NULL CHECK (record_status IN ('Draft', 'Complete')) DEFAULT 'Draft'
 );
 ```
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    
+    <changeSet id="CMT-671-01.01.02" author="developer">
+        <comment>Create beneficiary table</comment>
+        <sql>
+        CREATE TABLE IF NOT EXISTS payments.beneficiary (
+            beneficiary_id BIGINT NOT NULL PRIMARY KEY,
+            sun_id VARCHAR UNIQUE NOT NULL,
+            payment_id VARCHAR,
+            branch_id VARCHAR,
+            name VARCHAR NOT NULL,
+            account_number VARCHAR NOT NULL,
+            organization VARCHAR,
+            department VARCHAR,
+            street_name VARCHAR,
+            building_number VARCHAR,
+            building_name VARCHAR,
+            floor VARCHAR,
+            po_box VARCHAR,
+            room VARCHAR,
+            postal_code VARCHAR,
+            city VARCHAR NOT NULL,
+            town_location VARCHAR,
+            district VARCHAR,
+            state_province VARCHAR,
+            country VARCHAR NOT NULL,
+            created_by VARCHAR,
+            created_at TIMESTAMP DEFAULT current_timestamp,
+            updated_by VARCHAR,
+            updated_at TIMESTAMP,
+            record_status VARCHAR NOT NULL CHECK (record_status IN ('Draft', 'Complete')) DEFAULT 'Draft'
+        );
+        </sql>
+    </changeSet>
+    
+    <changeSet id="CMT-671-01.01.03" author="developer">
+        <comment>Create beneficiary_bank table</comment>
+        <sql>
+        CREATE TABLE IF NOT EXISTS payments.beneficiary_bank (
+            bank_id VARCHAR NOT NULL PRIMARY KEY,
+            beneficiary_id BIGINT NOT NULL,
+            identifier VARCHAR NOT NULL,
+            name VARCHAR NOT NULL,
+            department VARCHAR,
+            sub_department VARCHAR,
+            street_name VARCHAR,
+            building_number VARCHAR,
+            building_name VARCHAR,
+            floor VARCHAR,
+            po_box VARCHAR,
+            room VARCHAR,
+            postal_code VARCHAR,
+            city VARCHAR NOT NULL,
+            town_location VARCHAR,
+            district_name VARCHAR,
+            state_province VARCHAR,
+            country VARCHAR NOT NULL,
+            created_by VARCHAR,
+            created_at TIMESTAMP DEFAULT current_timestamp,
+            updated_by VARCHAR,
+            updated_at TIMESTAMP,
+            record_status VARCHAR NOT NULL CHECK (record_status IN ('Draft', 'Complete')) DEFAULT 'Draft',
+            FOREIGN KEY (beneficiary_id) REFERENCES payments.beneficiary(beneficiary_id)
+        );
+        </sql>
+    </changeSet>
+</databaseChangeLog>
+```
