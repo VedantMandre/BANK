@@ -314,20 +314,21 @@ CREATE TABLE IF NOT EXISTS beneficiaries (
 </databaseChangeLog>
 ```
 ```
-CREATE PROCEDURE ReconcileTimeDeposits
-AS
+CREATE OR REPLACE PROCEDURE reconcile_time_deposits()
+LANGUAGE plpgsql
+AS $$
 BEGIN
     -- Step 1: Identify rolled over TDs
-    WITH RolledOverTDs AS (
+    WITH rolled_over_tds AS (
         SELECT 
             otd.trade_number,
-            otd.reference_number AS NewReferenceNo,
-            otd.old_reference_no AS OldReferenceNo,
+            otd.reference_number AS new_reference_no,
+            otd.old_reference_no AS old_reference_no,
             otd.time_deposit_amount,
             otd.maturity_date,
             otd.currency,
             -- Generate Internal_RF_no if not available
-            CONCAT(otd.reference_number, '_RF') AS Internal_RF_no 
+            CONCAT(otd.reference_number, '_RF') AS internal_rf_no 
         FROM 
             deposit.test_recon_obs_time_deposit_data otd
         WHERE 
@@ -335,33 +336,31 @@ BEGIN
     )
 
     -- Step 2: Insert or Update records in time_deposit_rollover
-    MERGE INTO deposit.test_recon_time_deposit_rollover AS target
-    USING RolledOverTDs AS source
-    ON (target.reference_number = source.OldReferenceNo)
-    WHEN MATCHED THEN
-        UPDATE SET
-            target.reference_number = source.OldReferenceNo,
-            target.status = 'finalized'
-    WHEN NOT MATCHED THEN
-        INSERT (
-            obs_booking_id,
-            reference_number,
-            trade_number,
-            principal_amount,
-            maturity_date,
-            currency_code,
-            status,
-            internal_rf_no
-        )
-        VALUES (
-            NEWID(),  -- Creating unique booking ID
-            source.OldReferenceNo,
-            source.trade_number,
-            source.time_deposit_amount,
-            source.maturity_date,
-            source.currency,
-            'finalized',
-            source.Internal_RF_no
-        );
+    INSERT INTO deposit.test_recon_time_deposit_rollover (
+        obs_booking_id,
+        reference_number,
+        trade_number,
+        principal_amount,
+        maturity_date,
+        currency_code,
+        status,
+        internal_rf_no
+    )
+    SELECT 
+        gen_random_uuid(),  -- Generating unique booking ID
+        source.old_reference_no,
+        source.trade_number,
+        source.time_deposit_amount,
+        source.maturity_date,
+        source.currency,
+        'finalized',
+        source.internal_rf_no
+    FROM rolled_over_tds AS source
+    ON CONFLICT (reference_number)
+    DO UPDATE SET
+        reference_number = EXCLUDED.reference_number,
+        status = 'finalized';
 END;
+$$;
+
 ```
