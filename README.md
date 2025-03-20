@@ -329,25 +329,19 @@ BEGIN
             -- Generate Internal_RF_no if not available
             CONCAT(otd.reference_number, '_RF') AS Internal_RF_no 
         FROM 
-            obs_time_deposit_data otd
+            deposit.test_recon_obs_time_deposit_data otd
         WHERE 
             otd.old_reference_no IS NOT NULL
     )
 
     -- Step 2: Insert or Update records in time_deposit_rollover
-    MERGE INTO time_deposit_rollover AS target
+    MERGE INTO deposit.test_recon_time_deposit_rollover AS target
     USING RolledOverTDs AS source
     ON (target.reference_number = source.OldReferenceNo)
     WHEN MATCHED THEN
         UPDATE SET
-            target.trade_number = source.trade_number,
-            target.principal_amount = source.time_deposit_amount,
-            target.maturity_date = source.maturity_date,
-            target.currency_code = source.currency,
             target.reference_number = source.OldReferenceNo,
-            target.status = 'finalized',
-            target.updated_at = GETDATE(),
-            target.updated_by = 'SYSTEM' -- Change as required
+            target.status = 'finalized'
     WHEN NOT MATCHED THEN
         INSERT (
             obs_booking_id,
@@ -357,9 +351,7 @@ BEGIN
             maturity_date,
             currency_code,
             status,
-            internal_rf_no,
-            created_at,
-            created_by
+            internal_rf_no
         )
         VALUES (
             NEWID(),  -- Creating unique booking ID
@@ -369,16 +361,7 @@ BEGIN
             source.maturity_date,
             source.currency,
             'finalized',
-            source.Internal_RF_no,
-            GETDATE(),
-            'SYSTEM'
+            source.Internal_RF_no
         );
-
-    -- Step 3: Mark previous TDs as inactive
-    UPDATE obs_time_deposit_data
-    SET is_active = FALSE,
-        updated_at = GETDATE(),
-        updated_by = 'SYSTEM'
-    WHERE old_reference_no IS NOT NULL;
 END;
 ```
