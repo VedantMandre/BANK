@@ -313,3 +313,72 @@ CREATE TABLE IF NOT EXISTS beneficiaries (
     </changeSet>
 </databaseChangeLog>
 ```
+```
+CREATE PROCEDURE ReconcileTimeDeposits
+AS
+BEGIN
+    -- Step 1: Identify rolled over TDs
+    WITH RolledOverTDs AS (
+        SELECT 
+            otd.trade_number,
+            otd.reference_number AS NewReferenceNo,
+            otd.old_reference_no AS OldReferenceNo,
+            otd.time_deposit_amount,
+            otd.maturity_date,
+            otd.currency,
+            -- Generate Internal_RF_no if not available
+            CONCAT(otd.reference_number, '_RF') AS Internal_RF_no 
+        FROM 
+            obs_time_deposit_data otd
+        WHERE 
+            otd.old_reference_no IS NOT NULL
+    )
+
+    -- Step 2: Insert or Update records in time_deposit_rollover
+    MERGE INTO time_deposit_rollover AS target
+    USING RolledOverTDs AS source
+    ON (target.reference_number = source.OldReferenceNo)
+    WHEN MATCHED THEN
+        UPDATE SET
+            target.trade_number = source.trade_number,
+            target.principal_amount = source.time_deposit_amount,
+            target.maturity_date = source.maturity_date,
+            target.currency_code = source.currency,
+            target.reference_number = source.OldReferenceNo,
+            target.status = 'finalized',
+            target.updated_at = GETDATE(),
+            target.updated_by = 'SYSTEM' -- Change as required
+    WHEN NOT MATCHED THEN
+        INSERT (
+            obs_booking_id,
+            reference_number,
+            trade_number,
+            principal_amount,
+            maturity_date,
+            currency_code,
+            status,
+            internal_rf_no,
+            created_at,
+            created_by
+        )
+        VALUES (
+            NEWID(),  -- Creating unique booking ID
+            source.OldReferenceNo,
+            source.trade_number,
+            source.time_deposit_amount,
+            source.maturity_date,
+            source.currency,
+            'finalized',
+            source.Internal_RF_no,
+            GETDATE(),
+            'SYSTEM'
+        );
+
+    -- Step 3: Mark previous TDs as inactive
+    UPDATE obs_time_deposit_data
+    SET is_active = FALSE,
+        updated_at = GETDATE(),
+        updated_by = 'SYSTEM'
+    WHERE old_reference_no IS NOT NULL;
+END;
+```
