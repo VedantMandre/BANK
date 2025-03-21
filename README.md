@@ -65,101 +65,33 @@ INSERT INTO bank.branches (branch_id, branch_code, description) VALUES
 </databaseChangeLog>
 ```
 ```
-CREATE OR REPLACE PROCEDURE reconcile_time_deposits()
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Step 1: Identify rolled over TDs
-    WITH rolled_over_tds AS (
-        SELECT 
-            otd.trade_number,
-            otd.reference_number AS new_reference_no,
-            otd.old_reference_no AS old_reference_no,
-            otd.time_deposit_amount,
-            otd.maturity_date,
-            otd.currency,
-            -- Generate Internal_RF_no if not available
-            CONCAT(otd.reference_number, '_RF') AS internal_rf_no 
-        FROM 
-            deposit.test_recon_obs_time_deposit_data otd
-        WHERE 
-            otd.old_reference_no IS NOT NULL
-    )
-
-    -- Step 2: Insert or Update records in time_deposit_rollover
-    INSERT INTO deposit.test_recon_time_deposit_rollover (
-        reference_number,
-        trade_number,
-        principal_amount,
-        maturity_date,
-        currency_code,
-        status,
-        internal_rf_no
-    )
-    SELECT 
-        source.old_reference_no,
-        source.trade_number,
-        source.time_deposit_amount,
-        source.maturity_date,
-        source.currency,
-        'finalized',
-        source.internal_rf_no
-    FROM rolled_over_tds AS source
-    ON CONFLICT (reference_number)
-    DO UPDATE SET
-        reference_number = EXCLUDED.reference_number,
-        status = 'finalized';
-END;
-$$;
+SELECT 
+    otd.trade_number,
+    otd.old_reference_number,
+    tdr.reference_number,
+    tdr.status
+FROM deposit.test_recon_obs_time_deposit_data otd
+JOIN deposit.test_recon_time_deposit_rollover tdr
+ON otd.old_reference_number = tdr.reference_number;
 ```
 ```
-CREATE OR REPLACE PROCEDURE reconcile_time_deposits()
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Step 1: Identify rolled over TDs
-    WITH rolled_over_tds AS (
-        SELECT 
-            otd.trade_number,
-            otd.reference_number AS new_reference_no,
-            otd.old_reference_no AS old_reference_no,
-            otd.time_deposit_amount,
-            otd.maturity_date,
-            otd.currency,
-            -- Generate Internal_RF_no if not available
-            CONCAT(otd.reference_number, '_RF') AS internal_rf_no 
-        FROM 
-            deposit.test_recon_obs_time_deposit_data otd
-        WHERE 
-            otd.old_reference_no IS NOT NULL
-    )
-
-    -- Step 2: Insert or Update records in time_deposit_rollover
-    INSERT INTO deposit.test_recon_time_deposit_rollover (
-        obs_booking_id,
-        reference_number,
-        trade_number,
-        principal_amount,
-        maturity_date,
-        currency_code,
-        status,
-        internal_rf_no
-    )
-    SELECT 
-        gen_random_uuid(),  -- Generating unique booking ID
-        source.old_reference_no,
-        source.trade_number,
-        source.time_deposit_amount,
-        source.maturity_date,
-        source.currency,
-        'finalized',
-        source.internal_rf_no
-    FROM rolled_over_tds AS source
-    ON CONFLICT (reference_number)
-    DO UPDATE SET
-        reference_number = EXCLUDED.reference_number,
-        status = 'finalized';
-END;
-$$;
-
+SELECT 
+    otd.trade_number,
+    otd.old_reference_number,
+    otd.time_deposit_amount,
+    otd.maturity_date,
+    otd.currency,
+    otd.interest_accrued_till_date,
+    otd.interest_at_maturity,
+    otd.branch,
+    otd.funding_source,
+    otd.obs_code,
+    otd.time_deposit_account_number,
+    otd.settlement_account_number,
+    otd.maturity_status,
+    'Finalized' AS status  -- This will be used later for updating
+FROM deposit.test_recon_obs_time_deposit_data otd
+LEFT JOIN deposit.test_recon_time_deposit_rollover tdr
+ON otd.old_reference_number = tdr.reference_number
+WHERE tdr.reference_number IS NULL; 
 ```
