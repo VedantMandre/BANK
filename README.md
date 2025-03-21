@@ -76,22 +76,11 @@ ON otd.old_reference_number = tdr.reference_number;
 ```
 ```
 SELECT 
-    otd.trade_number,
-    otd.old_reference_number,
-    otd.time_deposit_amount,
-    otd.maturity_date,
-    otd.currency,
-    otd.interest_accrued_till_date,
-    otd.interest_at_maturity,
-    otd.branch,
-    otd.funding_source,
-    otd.obs_code,
-    otd.time_deposit_account_number,
-    otd.settlement_account_number,
-    otd.maturity_status,
-    'Finalized' AS status  -- This will be used later for updating
+    otd.old_reference_number, 
+    COUNT(tdr.reference_number) AS matched_records
 FROM deposit.test_recon_obs_time_deposit_data otd
 LEFT JOIN deposit.test_recon_time_deposit_rollover tdr
 ON otd.old_reference_number = tdr.reference_number
-WHERE tdr.reference_number IS NULL; 
+GROUP BY otd.old_reference_number
+ORDER BY matched_records DESC; 
 ```
