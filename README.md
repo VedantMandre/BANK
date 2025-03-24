@@ -185,10 +185,11 @@ BEGIN
     ON otd.old_reference_number = tdr.reference_number
     WHERE otd.old_reference_number IS NOT NULL;
 
-    -- Step 2: Insert new records or update existing ones in the rollover table
-    RAISE NOTICE 'Inserting/updating records...';
+    -- Step 2: Only process records where old_reference_number is not NULL 
+    -- (these are the rolled-over time deposits)
+    RAISE NOTICE 'Processing rolled-over time deposits...';
     
-    WITH source_data AS (
+    WITH rolled_over_data AS (
         SELECT 
             otd.trade_number, 
             otd.old_reference_number AS reference_number,  
@@ -221,7 +222,7 @@ BEGIN
         interest_amount, branch_code, funding_source, 
         obs_number, account_number, settlement_account, 
         maturity_status, status
-    FROM source_data
+    FROM rolled_over_data
     ON CONFLICT (reference_number) DO UPDATE SET
         trade_number = EXCLUDED.trade_number,
         principal_amount = EXCLUDED.principal_amount,
@@ -235,8 +236,16 @@ BEGIN
         account_number = EXCLUDED.account_number,
         settlement_account = EXCLUDED.settlement_account,
         maturity_status = EXCLUDED.maturity_status,
-        status = EXCLUDED.status;
+        status = 'Finalized';
         
+    -- Step 3: Update status to 'Finalized' for all records that exist in both tables
+    RAISE NOTICE 'Updating status for reconciled records...';
+    UPDATE deposit.test_recon_time_deposit_rollover tdr
+    SET status = 'Finalized'
+    FROM deposit.test_recon_obs_time_deposit_data otd
+    WHERE tdr.reference_number = otd.old_reference_number
+    AND otd.old_reference_number IS NOT NULL;
+    
     -- Confirmation Message
     RAISE NOTICE 'Sync completed successfully!';
 END;
