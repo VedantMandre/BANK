@@ -169,3 +169,76 @@ BEGIN
 END;
 $$;
 ```
+```
+UPDATED STORED PROC
+```
+```
+CREATE OR REPLACE PROCEDURE deposit.sync_time_deposit_rollover()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Step 1: Debugging - Check which old_reference_numbers already exist
+    RAISE NOTICE 'Checking existing references...';
+    PERFORM otd.old_reference_number, tdr.reference_number
+    FROM deposit.test_recon_obs_time_deposit_data otd
+    LEFT JOIN deposit.test_recon_time_deposit_rollover tdr
+    ON otd.old_reference_number = tdr.reference_number
+    WHERE otd.old_reference_number IS NOT NULL;
+
+    -- Step 2: Insert new records or update existing ones in the rollover table
+    RAISE NOTICE 'Inserting/updating records...';
+    
+    WITH source_data AS (
+        SELECT 
+            otd.trade_number, 
+            otd.old_reference_number AS reference_number,  
+            otd.time_deposit_amount AS principal_amount, 
+            otd.maturity_date, 
+            otd.currency AS currency_code, 
+            otd.interest_accrued_till_date AS accrued_interest, 
+            otd.interest_at_maturity AS interest_amount, 
+            otd.branch AS branch_code, 
+            otd.funding_source, 
+            otd.obs_code AS obs_number, 
+            otd.time_deposit_account_number AS account_number, 
+            otd.settlement_account_number AS settlement_account, 
+            otd.maturity_status, 
+            'Finalized' AS status
+        FROM deposit.test_recon_obs_time_deposit_data otd
+        WHERE otd.old_reference_number IS NOT NULL
+    )
+    
+    INSERT INTO deposit.test_recon_time_deposit_rollover (
+        trade_number, reference_number, principal_amount, 
+        maturity_date, currency_code, accrued_interest, 
+        interest_amount, branch_code, funding_source, 
+        obs_number, account_number, settlement_account, 
+        maturity_status, status
+    )
+    SELECT 
+        trade_number, reference_number, principal_amount, 
+        maturity_date, currency_code, accrued_interest, 
+        interest_amount, branch_code, funding_source, 
+        obs_number, account_number, settlement_account, 
+        maturity_status, status
+    FROM source_data
+    ON CONFLICT (reference_number) DO UPDATE SET
+        trade_number = EXCLUDED.trade_number,
+        principal_amount = EXCLUDED.principal_amount,
+        maturity_date = EXCLUDED.maturity_date,
+        currency_code = EXCLUDED.currency_code,
+        accrued_interest = EXCLUDED.accrued_interest,
+        interest_amount = EXCLUDED.interest_amount,
+        branch_code = EXCLUDED.branch_code,
+        funding_source = EXCLUDED.funding_source,
+        obs_number = EXCLUDED.obs_number,
+        account_number = EXCLUDED.account_number,
+        settlement_account = EXCLUDED.settlement_account,
+        maturity_status = EXCLUDED.maturity_status,
+        status = EXCLUDED.status;
+        
+    -- Confirmation Message
+    RAISE NOTICE 'Sync completed successfully!';
+END;
+$$;
+```
