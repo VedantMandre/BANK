@@ -120,3 +120,52 @@ ON otd.old_reference_number = tdr.reference_number
 WHERE otd.old_reference_number IS NOT NULL
 AND tdr.reference_number IS NULL;  -- Only insert if not already present
 ```
+```
+
+CREATE OR REPLACE PROCEDURE deposit.sync_time_deposit_rollover()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Step 1: Debugging - Check which old_reference_numbers already exist
+    RAISE NOTICE 'Checking existing references...';
+    PERFORM otd.old_reference_number, tdr.reference_number
+    FROM deposit.test_recon_obs_time_deposit_data otd
+    LEFT JOIN deposit.test_recon_time_deposit_rollover tdr
+    ON otd.old_reference_number = tdr.reference_number
+    WHERE otd.old_reference_number IS NOT NULL;
+
+    -- Step 2: Insert new records into the rollover table if not already present
+    RAISE NOTICE 'Inserting new records...';
+    INSERT INTO deposit.test_recon_time_deposit_rollover (
+        trade_number, reference_number, principal_amount, 
+        maturity_date, currency_code, accrued_interest, 
+        interest_amount, branch_code, funding_source, 
+        obs_number, account_number, settlement_account, 
+        maturity_status, status
+    )
+    SELECT 
+        otd.trade_number, 
+        otd.old_reference_number,  
+        otd.time_deposit_amount, 
+        otd.maturity_date, 
+        otd.currency, 
+        otd.interest_accrued_till_date, 
+        otd.interest_at_maturity, 
+        otd.branch, 
+        otd.funding_source, 
+        otd.obs_code, 
+        otd.time_deposit_account_number, 
+        otd.settlement_account_number, 
+        otd.maturity_status, 
+        'Finalized'  
+    FROM deposit.test_recon_obs_time_deposit_data otd
+    LEFT JOIN deposit.test_recon_time_deposit_rollover tdr
+    ON otd.old_reference_number = tdr.reference_number
+    WHERE otd.old_reference_number IS NOT NULL
+    AND tdr.reference_number IS NULL;
+
+    -- Confirmation Message
+    RAISE NOTICE 'Sync completed successfully!';
+END;
+$$;
+```
