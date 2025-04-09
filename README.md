@@ -151,3 +151,29 @@ BEGIN
 END;
 $$;
 ```
+```
+OBS Table (test_recon_obs_time_deposit_data)	Rollover Table (test_recon_time_deposit_rollover)	Purpose / Notes
+trade_number	trade_number	Trade reference
+reference_number	reference_number	New reference for term deposit
+old_reference_number	reference_number (in rollover)	Links to previous record
+start_date	start_date	Term deposit start
+maturity_date	maturity_date	Term deposit end
+tenor (as integer)	tenor (as varchar)	Duration — may need type casting
+currency	currency_code	Currency
+interest_rate	interest_rate	Agreed rate
+interest_at_maturity	interest_amount	Expected return
+interest_accrued_till_date	accrued_interest	Accrued till date
+maturity_status	maturity_status	Active / Matured / Rolled-over
+time_deposit_amount	principal_amount	Principal / deposit amount
+settlement_account_number	settlement_account	Payout account
+funding_source	funding_source	Source of funds
+sun_id	sun_id	Customer identifier
+account_official_name	account_official_name	Customer account name
+trade_type	trade_type	Type of deposit trade
+branch	branch_code	Branch information (naming might differ)
+done_time	creation_date	Record creation time
+update_time	updated_date	Record update time
+created_by	created_by	Record creator
+updated_by	updated_by	Record modifier
+is_active	active	Boolean flag for logical deletion
+```
