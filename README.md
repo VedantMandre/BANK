@@ -118,6 +118,7 @@ public HttpResponseMessage fetchZachrtn(
         return request.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 }
+```
 Why this solves your problem:
 Isolation: If you add a new table (e.g., Invoices), you create Invoice.java, add the SQL and Mapper there, and ProfileAccessor.java never changes.
 
@@ -126,5 +127,5 @@ No If-Else: The generic executeAndMap handles everything. The "Mapping" logic is
 Readability: ProfileAccessor stays short (about 30-40 lines) forever.
 
 Rigid Mapping: You are using rs.getString("COLUMN_NAME") inside the model, ensuring the data always goes to the right field.
-```
+
 
