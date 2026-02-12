@@ -1,131 +1,278 @@
+What We’re Going To Build
 
-1. The Core Engine (ProfileAccessor.java)
-This class now only handles the "Infrastructure"—connecting to the DB and executing a generic task. It doesn't need to know what a "Zachrtn" is.
+A clean layered JDBC design:
 
-```
-Java
+Function Layer
+    ↓
+Service Layer
+    ↓
+Repository Layer (Generic)
+    ↓
+Query Enum
+    ↓
+RowMapper
+
+
+So when a new table (like ZACHRTN) comes:
+
+Add DTO
+
+Add Query enum entry
+
+Add RowMapper
+
+Done ✅
+
+NO touching core logic.
+
+✅ STEP 1 — Move Queries to Enum (Very Good Idea)
+
+Create:
+
+ProfileQuery.java
+package com.smbcgroup.cms.reference;
+
+public enum ProfileQuery {
+
+    ACCOUNTS(
+        "SELECT a.GRP, a.CID, a.ACN, a.BOO, a.TITLE1, a.TITLE2, " +
+        "a.ACCTNAME, a.TYPE, a.CRCD, a.STAT, " +
+        "addr.AD1, addr.AD2, addr.AD3, addr.AD4 " +
+        "FROM ACN a JOIN ACNADDR addr ON a.CID = addr.CID"
+    ),
+
+    COMPANIES(
+        "SELECT ACN, BOO, NAM, PAD1, PAD2, PCITY, PZIP, PSTATE FROM CIF"
+    ),
+
+    ZACHRTN(
+        "SELECT TJD, SRC, CID, SPR, ZRTP, ZTCD, ZRDI, ZCD, ZDCID, ZAMNT, ZID, ZIDNM, " +
+        "ZDISCD, ZADDEND, ZTRACE, ZDATE, ZCLS, ZENTRY, ZORDI, ZCOID, ZCONAM, " +
+        "IAT, IATPOFAC, IATSOFAC FROM ZACHRTN"
+    );
+
+    private final String sql;
+
+    ProfileQuery(String sql) {
+        this.sql = sql;
+    }
+
+    public String getSql() {
+        return sql;
+    }
+}
+
+
+🔥 Now queries are centralized.
+No more string guessing.
+
+✅ STEP 2 — Generic Repository (Core Engine)
+
+Refactor ProfileAccessor into:
+
+ProfileRepository.java
 package com.smbcgroup.cms.reference;
 
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Logger;
 
-public class ProfileAccessor {
-    private static final Logger LOGGER = Logger.getLogger(ProfileAccessor.class.getName());
-    
-    // Infrastructure variables
+public class ProfileRepository {
+
+    private static final Logger LOGGER = Logger.getLogger(ProfileRepository.class.getName());
+
     private final String hostname = System.getenv("HOST_NAME");
     private final String username = System.getenv("CONNECTION_USERNAME");
     private final String password = System.getenv("CONNECTION_PASSWORD");
 
-    /**
-     * The ONLY method needed in ProfileAccessor for all future tables.
-     * It accepts a SQL query and a way to map the results.
-     */
-    public <T> List<T> executeAndMap(String query, RowMapper<T> mapper) throws Exception {
-        List<T> results = new ArrayList<>();
-        Class.forName("sanchez.jdbc.driver.scDriver");
+    static {
+        try {
+            Class.forName("sanchez.jdbc.driver.scDriver");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Driver not found", e);
+        }
+    }
 
-        try (Connection conn = DriverManager.getConnection(hostname, username, password);
-             PreparedStatement stmt = conn.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-            
-            while (rs.next()) {
-                results.add(mapper.map(rs));
+    public <T> List<T> execute(ProfileQuery query,
+                               RowMapper<T> mapper,
+                               Object... params) throws Exception {
+
+        List<T> results = new ArrayList<>();
+
+        try (Connection connection = DriverManager.getConnection(hostname, username, password);
+             PreparedStatement statement = connection.prepareStatement(query.getSql())) {
+
+            // Handle dynamic parameters
+            for (int i = 0; i < params.length; i++) {
+                statement.setObject(i + 1, params[i]);
             }
+
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    results.add(mapper.mapRow(rs));
+                }
+            }
+
         } catch (Exception e) {
-            LOGGER.severe("Database execution failed: " + e.getMessage());
+            LOGGER.severe("Database Error: " + e.getMessage());
             throw e;
         }
+
         return results;
     }
 }
 
-@FunctionalInterface
-interface RowMapper<T> {
-    T map(ResultSet rs) throws SQLException;
+
+🔥 Now we have:
+
+Generic execution
+
+Parameter support
+
+Enum-based queries
+
+Clean separation
+
+✅ STEP 3 — Fix Column Mapping (No Index Based Mapping)
+
+Now create a mapper for each DTO.
+
+AccountMapper.java
+public class AccountMapper implements RowMapper<Account> {
+
+    @Override
+    public Account mapRow(ResultSet rs) throws SQLException {
+        return new Account(
+            rs.getString("GRP"),
+            rs.getString("CID"),
+            rs.getString("ACN"),
+            rs.getString("BOO"),
+            rs.getString("TITLE1"),
+            rs.getString("TITLE2"),
+            rs.getString("ACCTNAME"),
+            rs.getString("TYPE"),
+            rs.getString("CRCD"),
+            rs.getString("STAT"),
+            rs.getString("AD1"),
+            rs.getString("AD2"),
+            rs.getString("AD3"),
+            rs.getString("AD4")
+        );
+    }
 }
-```
-2. The Smart Model (Zachrtn.java)
-We put the "Knowledge" of the table inside the model. By creating a static method here, you keep all logic related to ZACHRTN in one file.
-```
-Java
-package com.smbcgroup.cms.reference;
 
-import lombok.*;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
 
+✔ No index
+✔ Safe
+✔ Order independent
+
+✅ STEP 4 — Add ZACHRTN Cleanly
+
+Create DTO:
+
+Zachrtn.java
 @Data
-@Builder
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class Zachrtn {
-    // 1. Define Columns as a Constant for easy maintenance
-    public static final String SELECT_QUERY = 
-        "SELECT TJD, SRC, CID, SPR, ZRTP, ZTCD, ZRDI, ZCD, ZDCID, ZAMNT, ZID, ZIDNM, " +
-        "ZDISCD, ZADDEND, ZTRACE, ZDATE, ZCLS, ZENTRY, ZORDI, ZCOID, ZCONAM, IAT, IATPOFAC, IATSOFAC " +
-        "FROM ZACHRTN";
 
-    // Fields
-    private String tjd; 
-    private String src, cid, spr, zrtp, ztcd, zrdi, zcd, zdcid, zamnt, zid, zidnm;
-    private String zdiscd, zaddend, ztrace, zdate, zcls, zentry, zordi, zcoid, zconam;
-    private String iat, iatpofac, iatsofac;
+    private String tjd;
+    private String src;
+    private String cid;
+    private String spr;
+    private String zrtp;
+    private String ztcd;
+    private String zrdi;
+    private String zcd;
+    private String zdcid;
+    private String zamnt;
+    private String zid;
+    private String zidnm;
+    private String zdiscd;
+    private String zaddend;
+    private String ztrace;
+    private String zdate;
+    private String zcls;
+    private String zentry;
+    private String zordi;
+    private String zcoid;
+    private String zconam;
+    private String iat;
+    private String iatpofac;
+    private String iatsofac;
+}
 
-    /**
-     * 2. The 1-1 Column Mapper logic lives here.
-     */
-    public static Zachrtn fromResultSet(ResultSet rs) throws SQLException {
-        return Zachrtn.builder()
-                .tjd(rs.getString("TJD"))
-                .src(rs.getString("SRC"))
-                .cid(rs.getString("CID"))
-                .spr(rs.getString("SPR"))
-                .zrtp(rs.getString("ZRTP"))
-                .ztcd(rs.getString("ZTCD"))
-                // ... add all other fields using rs.getString("COLUMN_NAME") ...
-                .iatsofac(rs.getString("IATSOFAC"))
-                .build();
-    }
 
-    /**
-     * 3. The service method you call from the Function.
-     */
-    public static List<Zachrtn> fetchAll(ProfileAccessor accessor) throws Exception {
-        return accessor.executeAndMap(SELECT_QUERY, Zachrtn::fromResultSet);
+Create Mapper:
+
+public class ZachrtnMapper implements RowMapper<Zachrtn> {
+
+    @Override
+    public Zachrtn mapRow(ResultSet rs) throws SQLException {
+        return new Zachrtn(
+            rs.getString("TJD"),
+            rs.getString("SRC"),
+            rs.getString("CID"),
+            rs.getString("SPR"),
+            rs.getString("ZRTP"),
+            rs.getString("ZTCD"),
+            rs.getString("ZRDI"),
+            rs.getString("ZCD"),
+            rs.getString("ZDCID"),
+            rs.getString("ZAMNT"),
+            rs.getString("ZID"),
+            rs.getString("ZIDNM"),
+            rs.getString("ZDISCD"),
+            rs.getString("ZADDEND"),
+            rs.getString("ZTRACE"),
+            rs.getString("ZDATE"),
+            rs.getString("ZCLS"),
+            rs.getString("ZENTRY"),
+            rs.getString("ZORDI"),
+            rs.getString("ZCOID"),
+            rs.getString("ZCONAM"),
+            rs.getString("IAT"),
+            rs.getString("IATPOFAC"),
+            rs.getString("IATSOFAC")
+        );
     }
 }
-```
-3. The Clean Function Call (Function.java)
-Now, your Azure Function doesn't care about SQL or mapping. It just asks the Model to fetch itself.
-```
-Java
-@FunctionName("RetrieveZachrtnData")
-public HttpResponseMessage fetchZachrtn(
-        @HttpTrigger(name = "req", methods = {HttpMethod.GET}, authLevel = AuthorizationLevel.ANONYMOUS) 
+
+✅ STEP 5 — Function Layer (Clean & Modular)
+
+Now your Azure Functions become tiny and clean.
+
+@FunctionName("RetrieveZachrtn")
+public HttpResponseMessage getZachrtn(
+        @HttpTrigger(name = "req",
+                     methods = {HttpMethod.GET},
+                     authLevel = AuthorizationLevel.FUNCTION)
         HttpRequestMessage<Optional<String>> request,
-        final ExecutionContext context) {
-    
+        ExecutionContext context) {
+
     try {
-        // Just one line to get data:
-        List<Zachrtn> data = Zachrtn.fetchAll(this.profileAccessor);
-        
-        return getHttpResponseMessage(request, data);
+        ProfileRepository repo = new ProfileRepository();
+
+        List<Zachrtn> result =
+                repo.execute(ProfileQuery.ZACHRTN,
+                             new ZachrtnMapper());
+
+        return request.createResponseBuilder(HttpStatus.OK)
+                .header("Content-Type", "application/json")
+                .body(result)
+                .build();
+
     } catch (Exception e) {
-        context.getLogger().severe("Error: " + e.getMessage());
+        context.getLogger().severe("Error fetching ZACHRTN: " + e.getMessage());
         return request.createResponseBuilder(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 }
-```
-Why this solves your problem:
-Isolation: If you add a new table (e.g., Invoices), you create Invoice.java, add the SQL and Mapper there, and ProfileAccessor.java never changes.
 
-No If-Else: The generic executeAndMap handles everything. The "Mapping" logic is passed as a reference (Zachrtn::fromResultSet).
-
-Readability: ProfileAccessor stays short (about 30-40 lines) forever.
-
-Rigid Mapping: You are using rs.getString("COLUMN_NAME") inside the model, ensuring the data always goes to the right field.
-
-
+🧠 What We Achieved
+✅ ProfileAccessor no longer bloats
+✅ No if-else ladder
+✅ No query.contains
+✅ No index-based column mapping
+✅ Queries centralized
+✅ Adding new table = DTO + Mapper + Enum entry
+✅ Production-grade separation
